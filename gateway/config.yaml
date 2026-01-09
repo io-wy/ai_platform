@@ -1,0 +1,110 @@
+# AgentFlow Gateway 配置文件
+
+api_gateway:
+  http_addr: ":8080"
+  grpc_addr: ":9090"
+  agent_addr: "localhost:50051"
+  timeout: 30s
+  
+  rate_limit:
+    enabled: true
+    rps: 100
+    burst: 200
+  
+  cors:
+    allow_origins:
+      - "*"
+    allow_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "OPTIONS"
+    allow_headers:
+      - "Content-Type"
+      - "Authorization"
+      - "X-API-Key"
+  
+  auth:
+    enabled: false
+    api_keys:
+      - "your-api-key-here"
+    jwt:
+      secret: "your-jwt-secret"
+      expiration: 24h
+
+agent_gateway:
+  grpc_addr: ":50051"
+  
+  # MCP 服务器配置
+  mcp_servers:
+    # 文件系统 MCP
+    - name: filesystem
+      enabled: true
+      transport: stdio
+      command: "npx"
+      args:
+        - "-y"
+        - "@modelcontextprotocol/server-filesystem"
+        - "/workspace"
+      timeout: 30s
+      retry: 3
+    
+    # GitHub MCP
+    - name: github
+      enabled: false
+      transport: stdio
+      command: "npx"
+      args:
+        - "-y"
+        - "@modelcontextprotocol/server-github"
+      env:
+        GITHUB_PERSONAL_ACCESS_TOKEN: ""
+      timeout: 30s
+      retry: 3
+    
+    # PostgreSQL MCP
+    - name: postgres
+      enabled: false
+      transport: stdio
+      command: "npx"
+      args:
+        - "-y"
+        - "@modelcontextprotocol/server-postgres"
+        - "postgresql://localhost/mydb"
+      timeout: 30s
+      retry: 3
+    
+    # 自定义 HTTP MCP
+    - name: custom-http
+      enabled: false
+      transport: http
+      url: "http://localhost:3000/mcp"
+      timeout: 30s
+      retry: 3
+  
+  # Agent 池配置
+  pool:
+    min_size: 2
+    max_size: 100
+    idle_time: 5m
+    wait_time: 30s
+    health_time: 30s
+  
+  # 监控配置
+  monitor:
+    metrics:
+      enabled: true
+      addr: ":9091"
+      path: "/metrics"
+    
+    tracing:
+      enabled: false
+      endpoint: "http://localhost:14268/api/traces"
+      sampler: 0.1
+    
+    alerting:
+      enabled: false
+      latency_threshold: 5000
+      error_rate_threshold: 5.0
+      webhook_url: ""

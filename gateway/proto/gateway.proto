@@ -1,0 +1,375 @@
+syntax = "proto3";
+
+package gateway;
+
+option go_package = "github.com/agentflow/gateway/proto";
+
+// ============================================================================
+// API Gateway Service - 供外部业务调用
+// ============================================================================
+
+service APIGateway {
+  // 健康检查
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// ============================================================================
+// Agent Gateway Service - 供 API Gateway 内部调用
+// ============================================================================
+
+service AgentGateway {
+  // 聊天
+  rpc Chat(ChatRequest) returns (ChatResponse);
+  rpc ChatStream(ChatRequest) returns (stream ChatResponse);
+  
+  // 运行 Agent 任务
+  rpc Run(RunRequest) returns (RunResponse);
+  rpc RunStream(RunRequest) returns (stream RunResponse);
+  
+  // 会话管理
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionResponse);
+  
+  // 工具管理
+  rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
+  rpc ExecuteTool(ExecuteToolRequest) returns (ExecuteToolResponse);
+  
+  // 监控
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+  rpc GetAgentStatus(GetAgentStatusRequest) returns (GetAgentStatusResponse);
+}
+
+// ============================================================================
+// MCP Service - Agent 与 MCP Server 通信
+// ============================================================================
+
+service MCPBridge {
+  // 初始化连接
+  rpc Initialize(InitializeRequest) returns (InitializeResponse);
+  
+  // 列出资源
+  rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
+  
+  // 读取资源
+  rpc ReadResource(ReadResourceRequest) returns (ReadResourceResponse);
+  
+  // 列出工具
+  rpc ListMCPTools(ListMCPToolsRequest) returns (ListMCPToolsResponse);
+  
+  // 调用工具
+  rpc CallTool(CallToolRequest) returns (CallToolResponse);
+  
+  // Prompt 管理
+  rpc ListPrompts(ListPromptsRequest) returns (ListPromptsResponse);
+  rpc GetPrompt(GetPromptRequest) returns (GetPromptResponse);
+}
+
+// ============================================================================
+// 通用消息
+// ============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+  int64 time = 2;
+}
+
+// ============================================================================
+// Chat 消息
+// ============================================================================
+
+message ChatRequest {
+  string session_id = 1;
+  string message = 2;
+  map<string, string> context = 3;
+}
+
+message ChatResponse {
+  string session_id = 1;
+  string message = 2;
+  bool done = 3;
+  repeated ToolCallInfo tool_calls = 4;
+}
+
+message ToolCallInfo {
+  string id = 1;
+  string name = 2;
+  string arguments = 3;
+  string result = 4;
+}
+
+// ============================================================================
+// Run 消息
+// ============================================================================
+
+message RunRequest {
+  string session_id = 1;
+  string task = 2;
+  string pattern = 3;  // simple, react, cot, plan_execute
+  repeated string tools = 4;
+  map<string, string> config = 5;
+}
+
+message RunResponse {
+  string session_id = 1;
+  string output = 2;
+  bool success = 3;
+  repeated StepInfo steps = 4;
+  map<string, string> meta = 5;
+}
+
+message StepInfo {
+  int32 index = 1;
+  string type = 2;  // thought, action, observation, answer
+  string content = 3;
+  int64 timestamp = 4;
+}
+
+// ============================================================================
+// Session 消息
+// ============================================================================
+
+message CreateSessionRequest {
+  map<string, string> config = 1;
+}
+
+message CreateSessionResponse {
+  string session_id = 1;
+}
+
+message GetSessionRequest {
+  string session_id = 1;
+}
+
+message GetSessionResponse {
+  string session_id = 1;
+  int64 created_at = 2;
+  repeated MessageInfo messages = 3;
+}
+
+message MessageInfo {
+  string role = 1;
+  string content = 2;
+  int64 timestamp = 3;
+}
+
+message DeleteSessionRequest {
+  string session_id = 1;
+}
+
+message DeleteSessionResponse {
+  bool success = 1;
+}
+
+// ============================================================================
+// Tool 消息
+// ============================================================================
+
+message ListToolsRequest {}
+
+message ListToolsResponse {
+  repeated ToolInfo tools = 1;
+}
+
+message ToolInfo {
+  string name = 1;
+  string description = 2;
+  string parameters_schema = 3;  // JSON Schema
+}
+
+message ExecuteToolRequest {
+  string name = 1;
+  string arguments = 2;  // JSON
+}
+
+message ExecuteToolResponse {
+  string result = 1;
+  string error = 2;
+}
+
+// ============================================================================
+// Monitor 消息
+// ============================================================================
+
+message GetMetricsRequest {
+  repeated string metric_names = 1;
+}
+
+message GetMetricsResponse {
+  map<string, double> metrics = 1;
+}
+
+message GetAgentStatusRequest {
+  string agent_id = 1;
+}
+
+message GetAgentStatusResponse {
+  string agent_id = 1;
+  string status = 2;  // idle, running, error
+  int64 active_sessions = 3;
+  double memory_usage = 4;
+  int64 uptime = 5;
+}
+
+// ============================================================================
+// MCP 消息 (基于 MCP 协议规范)
+// ============================================================================
+
+message InitializeRequest {
+  string protocol_version = 1;
+  ClientCapabilities capabilities = 2;
+  ClientInfo client_info = 3;
+}
+
+message ClientCapabilities {
+  bool roots = 1;
+  SamplingCapability sampling = 2;
+}
+
+message SamplingCapability {
+  bool enabled = 1;
+}
+
+message ClientInfo {
+  string name = 1;
+  string version = 2;
+}
+
+message InitializeResponse {
+  string protocol_version = 1;
+  ServerCapabilities capabilities = 2;
+  ServerInfo server_info = 3;
+}
+
+message ServerCapabilities {
+  ToolsCapability tools = 1;
+  ResourcesCapability resources = 2;
+  PromptsCapability prompts = 3;
+}
+
+message ToolsCapability {
+  bool list_changed = 1;
+}
+
+message ResourcesCapability {
+  bool subscribe = 1;
+  bool list_changed = 2;
+}
+
+message PromptsCapability {
+  bool list_changed = 1;
+}
+
+message ServerInfo {
+  string name = 1;
+  string version = 2;
+}
+
+message ListResourcesRequest {
+  string cursor = 1;
+}
+
+message ListResourcesResponse {
+  repeated ResourceInfo resources = 1;
+  string next_cursor = 2;
+}
+
+message ResourceInfo {
+  string uri = 1;
+  string name = 2;
+  string description = 3;
+  string mime_type = 4;
+}
+
+message ReadResourceRequest {
+  string uri = 1;
+}
+
+message ReadResourceResponse {
+  repeated ResourceContent contents = 1;
+}
+
+message ResourceContent {
+  string uri = 1;
+  string mime_type = 2;
+  oneof content {
+    string text = 3;
+    bytes blob = 4;
+  }
+}
+
+message ListMCPToolsRequest {
+  string cursor = 1;
+}
+
+message ListMCPToolsResponse {
+  repeated MCPToolInfo tools = 1;
+  string next_cursor = 2;
+}
+
+message MCPToolInfo {
+  string name = 1;
+  string description = 2;
+  string input_schema = 3;  // JSON Schema
+}
+
+message CallToolRequest {
+  string name = 1;
+  string arguments = 2;  // JSON
+}
+
+message CallToolResponse {
+  repeated ToolContent content = 1;
+  bool is_error = 2;
+}
+
+message ToolContent {
+  string type = 1;  // text, image, resource
+  string text = 2;
+  bytes data = 3;
+  string mime_type = 4;
+}
+
+message ListPromptsRequest {
+  string cursor = 1;
+}
+
+message ListPromptsResponse {
+  repeated PromptInfo prompts = 1;
+  string next_cursor = 2;
+}
+
+message PromptInfo {
+  string name = 1;
+  string description = 2;
+  repeated PromptArgument arguments = 3;
+}
+
+message PromptArgument {
+  string name = 1;
+  string description = 2;
+  bool required = 3;
+}
+
+message GetPromptRequest {
+  string name = 1;
+  map<string, string> arguments = 2;
+}
+
+message GetPromptResponse {
+  string description = 1;
+  repeated PromptMessage messages = 2;
+}
+
+message PromptMessage {
+  string role = 1;
+  PromptContent content = 2;
+}
+
+message PromptContent {
+  string type = 1;
+  string text = 2;
+  string resource_uri = 3;
+}
