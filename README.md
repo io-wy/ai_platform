@@ -1,49 +1,108 @@
 # AgentFlow
 
-一个类 OpenManus 的 AI Agent 框架，支持多种推理模式、丰富的工具生态和灵活的 LLM 后端配置。
+轻量级、高性能的 AI Agent 框架。
 
-## 特性
+## ✨ 特性
 
-- 🧠 **多种推理模式** - ReAct、Chain-of-Thought (CoT)、Tree-of-Thought (ToT)、Reflexion、Plan & Execute，以及 Auto（智能选择）
-- 🔧 **丰富的工具生态** - 内置浏览器、终端、网络搜索、数据库、文件操作等工具，支持自定义扩展
-- 🔌 **多 LLM 后端支持** - OpenAI、vLLM、Ollama、Anthropic 等，完全兼容 OpenAI API
-- 💾 **智能记忆管理** - 短期记忆、长期记忆（基于 ChromaDB）、上下文压缩和优化
-- 📦 **现代化包管理** - 使用 uv 进行依赖管理，快速高效
+### 核心能力
+- 🧠 **多种推理模式** - ReAct、Chain-of-Thought、Tree-of-Thought、Reflexion、Plan & Execute
+- 🔧 **丰富的工具生态** - 浏览器、终端、网络搜索、数据库、文件操作等
+- 🔌 **多 LLM 后端** - OpenAI、vLLM、Ollama、Anthropic，完全兼容 OpenAI API
+- 💾 **智能记忆系统** - 基于 2024 最新论文的记忆管理 (MemGPT, Generative Agents)
 
-## 快速开始
+### 架构特点
+- 🏗️ **Protocol-based 设计** - 使用协议而非继承，高度解耦
+- ⚡ **Go 高性能网关** - 独立的 API/Agent Gateway，支持 gRPC 和 MCP 协议
+- 📊 **全面监控** - Prometheus 指标、分布式追踪、告警系统
+- 🔄 **MCP 协议支持** - 无缝对接 Model Context Protocol 服务器
+
+## 📦 项目结构
+
+```
+llmapplication/
+├── src/agentflow/         # Python Agent 框架
+│   ├── core/              # 核心类型和协议
+│   ├── memory/            # 记忆系统
+│   ├── llm/               # LLM 提供者
+│   ├── patterns/          # 推理模式
+│   └── tools/             # 工具系统
+├── gateway/               # Go 高性能网关
+│   ├── apigateway/        # API 网关 (HTTP/gRPC/WebSocket)
+│   ├── agentgateway/      # Agent 网关 (MCP 协议/监控)
+│   └── proto/             # gRPC 定义
+└── examples/              # 使用示例
+```
+
+## 🚀 快速开始
 
 ### 安装
 
 ```bash
-# 使用 uv 安装
+# Python 框架
 uv pip install -e .
 
-# 或使用 pip
-pip install -e .
+# Go 网关 (可选)
+cd gateway && make build
 ```
 
 ### 基础用法
 
 ```python
-import asyncio
-from agentflow import Agent, ReasoningPattern
+from agentflow import SimpleAgent
+from agentflow.llm import OpenAIProvider
+from agentflow.tools import tool
 
-async def main():
-    # 快速创建 Agent
-    agent = Agent.quick_start(model="gpt-4o-mini")
-  
-    # 简单对话
-    response = await agent.chat("你好！")
-    print(response)
-  
-    # 执行任务
-    result = await agent.run("分析Python和JavaScript的优缺点")
-    print(result.output)
-  
-    await agent.close()
+# 定义工具
+@tool(description="计算数学表达式")
+async def calculator(expression: str) -> str:
+    return str(eval(expression))
 
-asyncio.run(main())
+# 创建 Agent
+agent = (
+    SimpleAgent("MathBot")
+    .with_llm(OpenAIProvider(model="gpt-4o-mini"))
+    .with_tools([calculator])
+    .with_system_prompt("你是一个数学助手")
+)
+
+# 运行
+result = await agent.run("计算 (15 + 27) * 3")
+print(result.output)
 ```
+
+### 使用记忆系统
+
+```python
+from agentflow.memory import Memory, SQLiteStore
+
+# 创建带持久化的记忆
+memory = Memory(store=SQLiteStore("memory.db"))
+
+agent = (
+    SimpleAgent("Assistant")
+    .with_llm(llm)
+    .with_memory(memory)
+)
+
+# Agent 会自动记住对话历史
+await agent.run("我叫张三")
+await agent.run("我叫什么名字？")  # 会记住之前的信息
+```
+
+### 使用 Go 网关
+
+```bash
+# 启动网关
+cd gateway
+make run-all
+
+# 调用 API
+curl -X POST http://localhost:8080/api/v1/agent/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello!"}'
+```
+
+## 📖 详细文档
 
 ### 配置详解
 
