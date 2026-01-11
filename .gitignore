@@ -15,10 +15,12 @@ bin/
 # Go workspace file
 go.work
 
-# Environment files
+# Environment files - 保护所有 API Keys 和敏感配置
+# 匹配所有 .env 开头的文件
 .env
-.env.local
-.env.*.local
+.env*
+!.env.example
+!.env.template
 
 # IDE
 .vscode/
@@ -38,11 +40,62 @@ logs/
 # Database
 *.db
 *.sqlite
-
-# Docker volumes
-postgres_data/
-redis_data/
+*.sqlite3
+conversations.db
+memory.db
+agentflow.db
 
 # Temporary files
 tmp/
 temp/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Test and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# UV (Python package manager)
+.uv/
+uv.lock
+
+# Test files
+test_*.py
+*_test.py
+CHATBOT_TEST_RESULTS.md
