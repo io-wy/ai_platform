@@ -122,6 +122,7 @@ class QASystem:
             name="QA-System",
             llm=self.llm_config,
             pattern=ReasoningPattern.COT,
+            enable_memory=False,
             system_prompt="""你是一个专业的知识问答助手。根据提供的上下文信息回答用户问题。
 
 回答规则：
